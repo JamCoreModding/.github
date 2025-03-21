@@ -1,0 +1,51 @@
+name: build and test
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        required: true
+        type: string
+      gametest-project-directory:
+        required: false
+        default: ''
+        type: string
+      build-tasks:
+        required: false
+        default: 'clean neoforge:build fabric:build'
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Enable Caching
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/loom-cache
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/gradle-wrapper.properties') }}-${{ hashFiles('./gradle.properties') }}-${{ hashFiles('./libs.versions.toml') }}
+          restore-keys: gradle
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v1
+
+      - name: Setup JDK ${{ inputs.java-version }}
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ inputs.java-version }}
+
+      - name: Run Game Tests
+        if: ${{ inputs.gametest-project-directory != '' }}
+        run: ./gradlew ${{ inputs.gametest-project-directory }}:runGametest
+
+      - name: Build
+        run: ./gradlew ${{ inputs.build-tasks }}
